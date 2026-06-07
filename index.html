@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>도도실장 키워드 분석툴</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #fff;
+    border-bottom: 1px solid #e5e5e7;
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header .logo {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  header .logo span { color: #03c75a; }
+  header .badge {
+    background: #f5c800;
+    color: #1d1d1f;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #6e6e73;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* API 설정 */
+  .api-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6e6e73;
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    border: 1.5px solid #e5e5e7;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: monospace;
+  }
+  .field input:focus { border-color: #03c75a; }
+
+  /* 키워드 입력 */
+  .keyword-area {
+    width: 100%;
+    border: 1.5px solid #e5e5e7;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 14px;
+    outline: none;
+    resize: vertical;
+    min-height: 120px;
+    line-height: 1.8;
+    transition: border-color 0.2s;
+    font-family: inherit;
+  }
+  .keyword-area:focus { border-color: #03c75a; }
+  .keyword-hint {
+    font-size: 12px;
+    color: #6e6e73;
+    margin-top: 8px;
+  }
+
+  /* 기간 설정 */
+  .period-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  select {
+    width: 100%;
+    border: 1.5px solid #e5e5e7;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    outline: none;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  select:focus { border-color: #03c75a; }
+
+  /* 버튼 */
+  .btn-run {
+    width: 100%;
+    background: #03c75a;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    letter-spacing: -0.3px;
+  }
+  .btn-run:hover { background: #02b350; }
+  .btn-run:active { transform: scale(0.99); }
+  .btn-run:disabled { background: #c7c7cc; cursor: not-allowed; }
+
+  /* 로딩 */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 40px;
+    color: #6e6e73;
+    font-size: 15px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #e5e5e7;
+    border-top-color: #03c75a;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 에러 */
+  .error-box {
+    display: none;
+    background: #fff2f2;
+    border: 1.5px solid #ff3b30;
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: #ff3b30;
+    font-size: 14px;
+    margin-top: 16px;
+  }
+
+  /* 결과 */
+  #results { display: none; }
+
+  .result-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .summary-item {
+    background: #f5f5f7;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .summary-item .val {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: #1d1d1f;
+  }
+  .summary-item .val.green { color: #03c75a; }
+  .summary-item .lbl {
+    font-size: 12px;
+    color: #6e6e73;
+    margin-top: 4px;
+  }
+
+  /* 키워드 테이블 */
+  .kw-table { width: 100%; border-collapse: collapse; }
+  .kw-table th {
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6e6e73;
+    padding: 8px 12px;
+    border-bottom: 2px solid #e5e5e7;
+  }
+  .kw-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f5f5f7;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  .kw-table tr:last-child td { border-bottom: none; }
+  .kw-table tr:hover td { background: #f9f9f9; }
+
+  .kw-name { font-weight: 700; font-size: 15px; }
+  .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .score-bar-bg {
+    flex: 1; height: 8px;
+    background: #e5e5e7;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #03c75a, #00e676);
+    transition: width 0.6s ease;
+  }
+  .score-num { font-weight: 700; font-size: 13px; min-width: 30px; }
+
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .tag-hot { background: #fff0f0; color: #ff3b30; }
+  .tag-up { background: #f0fff4; color: #03c75a; }
+  .tag-stable { background: #f5f5f7; color: #6e6e73; }
+  .tag-season { background: #fff8e1; color: #f5c800; }
+
+  /* 차트 */
+  .chart-wrap { overflow-x: auto; margin-top: 8px; }
+  .chart-svg { display: block; }
+
+  /* 추천 */
+  .rec-list { list-style: none; }
+  .rec-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f5f5f7;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .rec-list li:last-child { border-bottom: none; }
+  .rec-icon { font-size: 18px; flex-shrink: 0; }
+
+  /* CSV 버튼 */
+  .btn-csv {
+    background: #f5f5f7;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-csv:hover { background: #e5e5e7; }
+
+  .result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">도도실장의 <span>P!CK</span></div>
+  <div class="badge">키워드 분석툴</div>
+</header>
+
+<div class="container">
+
+  <!-- API 설정 -->
+  <div class="card">
+    <h2>🔑 네이버 API 설정</h2>
+    <div class="api-row">
+      <div class="field">
+        <label>Client ID</label>
+        <input type="text" id="clientId" placeholder="fV4N5NikS7E4fSZwhNBb" value="fV4N5NikS7E4fSZwhNBb">
+      </div>
+      <div class="field">
+        <label>Client Secret</label>
+        <input type="password" id="clientSecret" placeholder="YS2Lv7omwp" value="YS2Lv7omwp">
+      </div>
+    </div>
+  </div>
+
+  <!-- 키워드 입력 -->
+  <div class="card">
+    <h2>🔍 분석할 키워드</h2>
+    <textarea class="keyword-area" id="keywords" placeholder="세탁세제
+주방세제
+섬유유연제
+핸드워시
+욕실청소
+주방청소"></textarea>
+    <p class="keyword-hint">한 줄에 하나씩 입력 · 최대 5개 · 쉼표로 묶으면 같은 그룹으로 처리 (예: 세탁세제,세탁액)</p>
+  </div>
+
+  <!-- 기간 설정 -->
+  <div class="card">
+    <h2>📅 분석 기간</h2>
+    <div class="period-row">
+      <div class="field">
+        <label>시작 연도</label>
+        <select id="startYear">
+          <option value="2024">2024</option>
+          <option value="2025" selected>2025</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>시작 월</label>
+        <select id="startMonth">
+          <option value="01">1월</option>
+          <option value="02">2월</option>
+          <option value="03">3월</option>
+          <option value="04">4월</option>
+          <option value="05">5월</option>
+          <option value="06" selected>6월</option>
+          <option value="07">7월</option>
+          <option value="08">8월</option>
+          <option value="09">9월</option>
+          <option value="10">10월</option>
+          <option value="11">11월</option>
+          <option value="12">12월</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>기간</label>
+        <select id="period">
+          <option value="3">최근 3개월</option>
+          <option value="6">최근 6개월</option>
+          <option value="12" selected>최근 12개월</option>
+          <option value="24">최근 24개월</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-run" id="runBtn" onclick="runAnalysis()">🔍 키워드 분석 시작</button>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    네이버 데이터랩에서 데이터 수집 중...
+  </div>
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- 결과 -->
+  <div id="results">
+
+    <div class="card" style="margin-top:20px;">
+      <div class="result-header">
+        <h2>📊 분석 결과</h2>
+        <button class="btn-csv" onclick="exportCSV()">CSV 저장</button>
+      </div>
+      <div class="result-summary" id="summary"></div>
+      <table class="kw-table" id="kwTable">
+        <thead>
+          <tr>
+            <th>순위</th>
+            <th>키워드</th>
+            <th>최고 검색량</th>
+            <th>평균 검색량</th>
+            <th>트렌드</th>
+            <th>제품 선정 점수</th>
+            <th>판단</th>
+          </tr>
+        </thead>
+        <tbody id="kwBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>📈 검색량 추이</h2>
+      <div class="chart-wrap" id="chartWrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>💡 도도실장 제품 선정 추천</h2>
+      <ul class="rec-list" id="recList"></ul>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let analysisData = [];
+
+function getDateRange(period) {
+  const end = new Date();
+  end.setDate(1);
+  const start = new Date(end);
+  start.setMonth(start.getMonth() - parseInt(period));
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+  return { start: fmt(start), end: fmt(end) };
+}
+
+function parseKeywords(raw) {
+  return raw.trim().split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .slice(0, 5)
+    .map(line => ({
+      groupName: line.split(',')[0].trim(),
+      keywords: line.split(',').map(k => k.trim())
+    }));
+}
+
+async function runAnalysis() {
+  const clientId = document.getElementById('clientId').value.trim();
+  const clientSecret = document.getElementById('clientSecret').value.trim();
+  const keywordsRaw = document.getElementById('keywords').value;
+  const period = document.getElementById('period').value;
+
+  if (!clientId || !clientSecret) { showError('Client ID와 Secret을 입력해주세요.'); return; }
+  if (!keywordsRaw.trim()) { showError('키워드를 입력해주세요.'); return; }
+
+  const groups = parseKeywords(keywordsRaw);
+  if (groups.length === 0) { showError('키워드를 입력해주세요.'); return; }
+
+  const { start, end } = getDateRange(period);
+
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('errorBox').style.display = 'none';
+
+  try {
+    const body = {
+      startDate: start,
+      endDate: end,
+      timeUnit: 'month',
+      keywordGroups: groups
+    };
+
+    const res = await fetch('api/naver', {
+      method: 'POST',
+      headers: {
+        'X-Naver-Client-Id': clientId,
+        'X-Naver-Client-Secret': clientSecret,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.errorMessage || `API 오류 (${res.status})`);
+    }
+
+    const data = await res.json();
+    renderResults(data, groups);
+
+  } catch (e) {
+    showError(`오류: ${e.message}<br><small>CORS 오류가 뜨면 아래 방법으로 해결하세요 👇<br>Chrome 확장 → "CORS Unblock" 설치 후 활성화</small>`);
+  } finally {
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+function calcScore(data) {
+  const vals = data.map(d => d.ratio);
+  const max = Math.max(...vals);
+  const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const recent = vals.slice(-3);
+  const recentAvg = recent.reduce((a,b)=>a+b,0)/recent.length;
+  const trend = recentAvg > avg ? 'up' : recentAvg < avg * 0.8 ? 'down' : 'stable';
+
+  // 시즌성: 표준편차 높을수록 시즌 제품
+  const mean = avg;
+  const std = Math.sqrt(vals.map(v=>(v-mean)**2).reduce((a,b)=>a+b,0)/vals.length);
+  const seasonScore = std / (mean || 1);
+
+  // 제품선정 점수: 검색량(50%) + 트렌드(30%) + 시즌성 반전(20%)
+  const volScore = Math.min(max / 100, 1) * 50;
+  const trendScore = trend === 'up' ? 30 : trend === 'stable' ? 15 : 5;
+  const seasonBonus = seasonScore < 0.5 ? 20 : seasonScore < 1 ? 10 : 5; // 꾸준한 게 유리
+  const total = Math.round(volScore + trendScore + seasonBonus);
+
+  return { max, avg: Math.round(avg*10)/10, trend, seasonScore, total };
+}
+
+function trendTag(t) {
+  if (t === 'up') return '<span class="tag tag-up">▲ 상승중</span>';
+  if (t === 'down') return '<span class="tag tag-hot">▼ 하락</span>';
+  return '<span class="tag tag-stable">→ 안정</span>';
+}
+
+function renderResults(data, groups) {
+  analysisData = [];
+
+  // 점수 계산
+  data.results.forEach((r, i) => {
+    const s = calcScore(r.data);
+    analysisData.push({
+      name: groups[i]?.groupName || r.title,
+      keywords: groups[i]?.keywords || [r.title],
+      data: r.data,
+      ...s
+    });
+  });
+
+  // 점수순 정렬
+  analysisData.sort((a,b) => b.total - a.total);
+  const maxScore = Math.max(...analysisData.map(d=>d.total));
+
+  // 요약
+  const totalKw = analysisData.length;
+  const hotKw = analysisData.filter(d=>d.trend==='up').length;
+  const topKw = analysisData[0]?.name || '-';
+  document.getElementById('summary').innerHTML = `
+    <div class="summary-item"><div class="val">${totalKw}</div><div class="lbl">분석 키워드</div></div>
+    <div class="summary-item"><div class="val green">${hotKw}</div><div class="lbl">상승 트렌드</div></div>
+    <div class="summary-item"><div class="val" style="font-size:18px;padding-top:4px">${topKw}</div><div class="lbl">최우선 추천</div></div>
+  `;
+
+  // 테이블
+  const tbody = document.getElementById('kwBody');
+  tbody.innerHTML = '';
+  analysisData.forEach((d, i) => {
+    const barPct = Math.round((d.total / maxScore) * 100);
+    tbody.innerHTML += `
+      <tr>
+        <td style="font-weight:800;color:#6e6e73">${i+1}</td>
+        <td><div class="kw-name">${d.name}</div><div style="font-size:11px;color:#6e6e73;margin-top:2px">${d.keywords.join(', ')}</div></td>
+        <td style="font-weight:700">${d.max.toFixed(1)}</td>
+        <td>${d.avg}</td>
+        <td>${trendTag(d.trend)}</td>
+        <td>
+          <div class="score-bar-wrap">
+            <div class="score-bar-bg"><div class="score-bar-fill" style="width:${barPct}%"></div></div>
+            <span class="score-num">${d.total}</span>
+          </div>
+        </td>
+        <td>${d.total >= 70 ? '✅ 추천' : d.total >= 50 ? '🟡 검토' : '⬜ 보류'}</td>
+      </tr>
+    `;
+  });
+
+  // 차트 (SVG 라인 차트)
+  renderChart(analysisData, data.results[0]?.data?.map(d=>d.period) || []);
+
+  // 추천 텍스트
+  renderRec(analysisData);
+
+  document.getElementById('results').style.display = 'block';
+}
+
+function renderChart(items, periods) {
+  const W = 820, H = 240, PL = 40, PR = 20, PT = 20, PB = 40;
+  const chartW = W - PL - PR, chartH = H - PT - PB;
+  const colors = ['#03c75a','#f5c800','#ff3b30','#0071e3','#9c27b0'];
+
+  const allVals = items.flatMap(d=>d.data.map(p=>p.ratio));
+  const maxV = Math.max(...allVals) || 1;
+  const n = periods.length;
+
+  const x = i => PL + (i / (n-1)) * chartW;
+  const y = v => PT + chartH - (v / maxV) * chartH;
+
+  let svg = `<svg class="chart-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+
+  // 그리드
+  for(let i=0;i<=4;i++){
+    const yy = PT + (chartH/4)*i;
+    svg += `<line x1="${PL}" y1="${yy}" x2="${W-PR}" y2="${yy}" stroke="#e5e5e7" stroke-width="1"/>`;
+    svg += `<text x="${PL-4}" y="${yy+4}" text-anchor="end" font-size="10" fill="#c7c7cc">${Math.round(maxV*(1-i/4))}</text>`;
+  }
+
+  // 라인 + 포인트
+  items.forEach((item, ci) => {
+    const pts = item.data.map((p,i)=>`${x(i)},${y(p.ratio)}`).join(' ');
+    svg += `<polyline points="${pts}" fill="none" stroke="${colors[ci]}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    item.data.forEach((p,i)=>{
+      svg += `<circle cx="${x(i)}" cy="${y(p.ratio)}" r="4" fill="${colors[ci]}" stroke="#fff" stroke-width="1.5"/>`;
+    });
+  });
+
+  // X축 레이블 (월 표시)
+  periods.forEach((p, i) => {
+    if(i % Math.ceil(n/6) === 0 || i === n-1){
+      const label = p.slice(0,7).replace('-','.');
+      svg += `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="10" fill="#6e6e73">${label}</text>`;
+    }
+  });
+
+  // 범례
+  items.forEach((item, ci) => {
+    const lx = PL + ci * 130;
+    svg += `<rect x="${lx}" y="${H-18}" width="10" height="10" rx="2" fill="${colors[ci]}"/>`;
+    svg += `<text x="${lx+14}" y="${H-9}" font-size="11" fill="#1d1d1f">${item.name}</text>`;
+  });
+
+  svg += '</svg>';
+  document.getElementById('chartWrap').innerHTML = svg;
+}
+
+function renderRec(items) {
+  const top = items[0];
+  const ups = items.filter(d=>d.trend==='up');
+  const stables = items.filter(d=>d.trend==='stable' && d.avg > 30);
+
+  let html = '';
+
+  if(top) {
+    html += `<li><span class="rec-icon">🏆</span><div><strong>${top.name}</strong> — 검색량·트렌드 종합 1위. 블로그 포스팅 최우선 제품으로 추천해요.</div></li>`;
+  }
+  if(ups.length > 0) {
+    html += `<li><span class="rec-icon">📈</span><div><strong>${ups.map(d=>d.name).join(', ')}</strong> — 최근 3개월 검색량 상승 중. 지금 포스팅하면 타이밍 좋아요.</div></li>`;
+  }
+  if(stables.length > 0) {
+    html += `<li><span class="rec-icon">🔄</span><div><strong>${stables.map(d=>d.name).join(', ')}</strong> — 꾸준한 검색량. 시즌 타지 않는 스테디셀러 제품군. 재고 부담 없는 제품 선택하기 좋아요.</div></li>`;
+  }
+
+  const seasonItems = items.filter(d=>d.seasonScore > 1);
+  if(seasonItems.length > 0) {
+    html += `<li><span class="rec-icon">🌊</span><div><strong>${seasonItems.map(d=>d.name).join(', ')}</strong> — 시즌성 강해요. 피크 시즌 1~2개월 전에 포스팅 올려야 노출 잡혀요.</div></li>`;
+  }
+
+  const low = items.filter(d=>d.total < 40);
+  if(low.length > 0) {
+    html += `<li><span class="rec-icon">⚠️</span><div><strong>${low.map(d=>d.name).join(', ')}</strong> — 검색량 낮거나 하락세. 이번 시즌 제품 선정에서 후순위로 미루세요.</div></li>`;
+  }
+
+  document.getElementById('recList').innerHTML = html || '<li><span class="rec-icon">✅</span><div>분석 완료. 위 표를 참고해서 제품을 선정해보세요.</div></li>';
+}
+
+function exportCSV() {
+  if(!analysisData.length) return;
+  let csv = '순위,키워드,최고검색량,평균검색량,트렌드,선정점수,추천여부\n';
+  analysisData.forEach((d,i)=>{
+    const rec = d.total>=70?'추천':d.total>=50?'검토':'보류';
+    csv += `${i+1},${d.name},${d.max.toFixed(1)},${d.avg},${d.trend},${d.total},${rec}\n`;
+  });
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='도도실장_키워드분석.csv'; a.click();
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.innerHTML = msg;
+  box.style.display = 'block';
+}
+</script>
+</body>
+</html>
